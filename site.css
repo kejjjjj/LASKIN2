@@ -96,6 +96,6 @@
     width: 30px;
     height: 30px;
     margin-right: 10px;
-    font-family: "roboto", sans-serif;
     transition-duration:.5s;
+    background: linear-gradient(to bottom right, #4b6cb7, #182848);
  }

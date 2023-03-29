@@ -19,6 +19,10 @@ const Functions = new Map([
     ['sin',  {fnc:   (value) =>    {return Math.sin(value);},     num_args: 1}],
     ['cos',  {fnc:   (value) =>    {return Math.cos(value);},     num_args: 1}]
     ])
+
+let expecting_expression = true;
+let expecting_opening_parenthesis = 0;
+let expecting_function_arguments = 0;
 function GetOperandPriority(ops)
 {
     if(typeof(ops) != "string")
@@ -144,7 +148,9 @@ function StringWithinParantheses(str)
 }
 function EvaluateExpression_Init()
 {
-
+     expecting_expression = true;
+    expecting_opening_parenthesis = 0;
+    expecting_function_arguments = 0;
     let elem = document.getElementById("expression_");
     let output = document.getElementById("output_val");
     output.innerHTML = "";
@@ -179,6 +185,28 @@ function EvaluateExpressionParts(expression) //recursive
     }
 
     if(par.result_string.length){
+
+        let isfunccall = ((expr, itr) => {
+            if(itr < 0)
+                return undefined;
+
+            let ch = expr[itr];
+            let token = String();
+            while(!isOperator(ch) && itr){
+
+                if(itr == 0)
+                    break;
+                token += ch;
+                ch = expr[--itr];
+            }
+            return Functions.get(token);
+                
+            
+        })(expression, par.opening-1); //IsFunctionCall
+
+        if(isfunccall != undefined)
+            return EvaluateFunctionExpression(isfunccall, par);
+        
         let result = EvaluateExpression(par.result_string);
         
         if(result == "NaN")
@@ -220,6 +248,7 @@ function EvaluateExpression(expression)
     }
     console.log(tokens);
     return EvaluateExpressionTokens(tokens);
+    return true;
 }
 function EvaluateExpressionTokens(tokens)
 {
@@ -272,6 +301,13 @@ function EvaluateExpressionTokens(tokens)
     }
     return String(evaluated);
 }
+function EvaluateFunctionExpression(fnc, par_string)
+{
+    //par_string = parenthesis object
+    //par.result_string contains the string within the parentheses
+
+    
+}
 function TokenizeExpression(expression)
 {
     if(typeof(expression) != "string")
@@ -280,9 +316,15 @@ function TokenizeExpression(expression)
     let iterator = 0;
     let token = new String();
     let tokens = [];
-    let expecting_expression = true;
+    
     while(iterator < expression.length){
-        token += (expression[iterator]);
+        let ch =  (expression[iterator]);
+        if(expecting_opening_parenthesis && ch != '('){
+            return "Syntax Error: expected a '('";
+        }else if(expecting_opening_parenthesis)
+            expecting_opening_parenthesis = 1;
+
+        token += expression[iterator];
         let isOP = isOperator(expression[iterator]);
         
         if(isOP){
@@ -299,19 +341,18 @@ function TokenizeExpression(expression)
                 console.log(`isNumber(${token}) == ${is_number}`);
                 if(isOP && !is_number){
                    let fnc = Functions.get(token);
-
-                   if(fnc == undefined){
-                    return String(`Syntax Error: unexpected token: ${token}`);
-                   }
-                   return "big success!";
                    
+                    if(fnc == undefined){
+                        return String(`Syntax Error: unexpected token: ${token}`);
+                    }
+                    expecting_function_arguments = fnc.num_args;
+                    expecting_opening_parenthesis = 0;
+                    //return "big success!";
                 }
                 else if(isOP || is_number){
-                    console.log(`the token: ${token}`);
                     tokens.push({expr: token, operator : expression[iterator]});
-                    token = "";
                 }
-                console.log(`the token: ${token}`);
+                token = "";
             }
         }
 
@@ -320,13 +361,11 @@ function TokenizeExpression(expression)
     }
 
     if(token.length){
-        if(isOperator(token[token.length-1]))
-            if(expecting_expression)
-                return "Syntax Error: expecting expression";
-
+        console.log(`last length: ${token.length}`);
         let is_number = isNumber(token);
+        console.log(`isNumber(${token}) == ${is_number}`);
         if(is_number){
-            console.log(`isNumber(${token}) == true`);
+            
 
             tokens.push({expr: token, operator : ""});
             token = "";
@@ -334,7 +373,13 @@ function TokenizeExpression(expression)
             return String(`Syntax Error: unexpected token: ${token}`);
         }
     }
+
+    if(expecting_expression)
+        return "Syntax Error: expecting expression";
+
     console.log(expression);
+
+
 
     return tokens;
     
