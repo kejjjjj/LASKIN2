@@ -92,3 +92,10 @@
   input[type="text"]:focus {
       background-color:rgb(51, 48, 48) ;
   }
+  input[type="checkbox"] {
+    width: 30px;
+    height: 30px;
+    margin-right: 10px;
+    font-family: "roboto", sans-serif;
+    transition-duration:.5s;
+ }
