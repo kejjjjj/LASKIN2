@@ -13,13 +13,19 @@ const OperatorPriority = Object.freeze({
     MULTIPLICATIVE : 11,
     UNARY: 12
 });
+const Functions = new Map([
+    ['sqrt', {fnc:   (value) =>    {return Math.sqrt(value);},    num_args: 1}],
+    ['tan',  {fnc:   (value) =>    {return Math.tan(value);},     num_args: 1}],
+    ['sin',  {fnc:   (value) =>    {return Math.sin(value);},     num_args: 1}],
+    ['cos',  {fnc:   (value) =>    {return Math.cos(value);},     num_args: 1}]
+    ])
 function GetOperandPriority(ops)
 {
     if(typeof(ops) != "string")
         return OperatorPriority.FAILURE, alert(`GetOperandPriority(): passed type ${typeof(ops)} instead of string`);
 
     if(ops.length == 1){
-        op = ops[0];
+        const op = ops[0];
 
         if (op == '|') // Bitwise OR	
             return OperatorPriority.BITWISE_OR;
@@ -69,7 +75,7 @@ function StrEval(loperand, operator, roperand)
     }
 
     if (operator.length < 2) {
-        op = operator[0];
+        const op = operator[0];
         switch (op) {
             case '+':
                 return String(lvalue + rvalue);
@@ -84,11 +90,18 @@ function StrEval(loperand, operator, roperand)
     return "0";
 }
 function isNumber(input) {
-    return !isNaN(input);
+    const parsed = parseFloat(input);
+    return !isNaN(parsed) && isFinite(parsed) && String(parsed).length == input.length;
 }
 function isOperator(o)
 {
     return (o == '+' || o == '-' || o == '/' || o =='*');
+}
+function isAlpha(character) {
+    return /^[a-zA-Z]+$/.test(character);
+}
+function isAlphanumeric(character) {
+    return /^[a-z0-9]+$/i.test(character);
 }
 function StringWithinParantheses(str)
 {
@@ -101,7 +114,7 @@ function StringWithinParantheses(str)
         strlength: 0, 
         result_string: "",});
     
-    closing = 0;
+    let closing = 0;
     for(let i = 0; i < str.length; i++){
         switch(str[i]){
             case '(':
@@ -136,11 +149,11 @@ function EvaluateExpression_Init()
     let output = document.getElementById("output_val");
     output.innerHTML = "";
 
-    expression = elem.value.replace(/\s/g, ''); //remove whitespaces
+    let expression = elem.value.replace(/\s/g, ''); //remove whitespaces
 
     EvaluateExpressionParts(expression);
 
-    output.innerHTML += expression;
+    //output.innerHTML += expression;
     //console.log(tokens);
 }
 function eraseString(str, start, count) {
@@ -155,11 +168,13 @@ function EvaluateExpressionParts(expression) //recursive
     if(typeof(expression) != "string")
         return "invalid", alert(`EvaluateExpressionParts(): passed type ${typeof(expression)} instead of string`);
     
-    console.log(`evaluating: "${expression}"`);
+    console.log(`EvaluateExpressionParts: "${expression}"`);
 
 
-    par = StringWithinParantheses(expression);
+    let par = StringWithinParantheses(expression);
     if(par == undefined){
+        console.log(`EvaluateExpressionParts: par == undefined`);
+
         return undefined;
     }
 
@@ -179,23 +194,28 @@ function EvaluateExpressionParts(expression) //recursive
     }
     
     let result = EvaluateExpression(expression);
-
+    if(result == "NaN"){
+        console.log("epic EvaluateExpression() failure!");
+        return false;
+    }
     return true;
 }
 function EvaluateExpression(expression)
 {
     if(isNumber(expression)){
+        console.log(`IsNumber(${expression}) == true`)
         return expression;
     }
     if(typeof(expression) != "string")
-        return "invalid", alert(`EvaluateExpression(): passed type ${typeof(expression)} instead of string`);
+        return "NaN", alert(`EvaluateExpression(): passed type ${typeof(expression)} instead of string`);
 
 
     const tokens = TokenizeExpression(expression);
 
     if(typeof(tokens) == "string"){
-        output.innerHTML += tokens;
-        console.log("epic failure");
+        let output = document.getElementById("output_val");
+        output.innerHTML += (tokens);
+        console.log(`epic failure: ${tokens}`);
         return "NaN";
     }
     console.log(tokens);
@@ -203,8 +223,8 @@ function EvaluateExpression(expression)
 }
 function EvaluateExpressionTokens(tokens)
 {
-
-    initial_size = tokens.length;
+    let output = document.getElementById("output_val");
+    let initial_size = tokens.length;
     console.log(`initial_size: ${tokens.length}`);
     let evaluated = 0;
     while(initial_size > 1){
@@ -219,6 +239,9 @@ function EvaluateExpressionTokens(tokens)
 
         while (next_op > op) {
             
+            lobj = new Object(tokens[lval_itr]);
+            robj = new Object(tokens[rval_itr]);
+
             op = GetOperandPriority(lobj.operator);
             next_op = GetOperandPriority(robj.operator);
 
@@ -236,13 +259,15 @@ function EvaluateExpressionTokens(tokens)
 
         let loperand = tokens[lval_itr].expr;
         let roperand = tokens[rval_itr].expr;
-        let operator = tokens[lval_itr].operator;
-        evaluated = StrEval(loperand, operator, roperand);
-        console.log(`evaluating: (${loperand} ${operator} ${roperand}) = ${evaluated}`);
+        let _operator = tokens[lval_itr].operator;
+        evaluated = StrEval(loperand, _operator, roperand);
+        console.log(`evaluating: (${loperand} ${_operator} ${roperand}) = ${evaluated}`);
+        // console.log(`size: ${tokens.length}, accessing: ${lval_itr}`);
+        tokens.splice(lval_itr, 2, new Object({expr: evaluated, operator: tokens[rval_itr].operator}));
+       // tokens[lval_itr].expr = evaluated;
         
-        tokens.splice(lval_itr, lval_itr);
-        console.log(`size: ${tokens.length}, accessing: ${lval_itr}`);
-        tokens[lval_itr].expr = evaluated;
+        
+        output.innerHTML += `(${loperand} ${_operator} ${roperand}) = ${evaluated}<br>`;
         initial_size--;
     }
     return String(evaluated);
@@ -250,7 +275,7 @@ function EvaluateExpressionTokens(tokens)
 function TokenizeExpression(expression)
 {
     if(typeof(expression) != "string")
-        return "invalid", alert(`TokenizeExpression(): passed type ${typeof(expression)} instead of string`);
+        return "NaN", alert(`TokenizeExpression(): passed type ${typeof(expression)} instead of string`);
 
     let iterator = 0;
     let token = new String();
@@ -258,7 +283,7 @@ function TokenizeExpression(expression)
     let expecting_expression = true;
     while(iterator < expression.length){
         token += (expression[iterator]);
-        let isOP = isOperator(token[token.length-1]);
+        let isOP = isOperator(expression[iterator]);
         
         if(isOP){
             if(expecting_expression)
@@ -270,8 +295,23 @@ function TokenizeExpression(expression)
             
             if(token.length){
                // tokens.set(token, expression[iterator]);
-                tokens.push({expr: token, operator : expression[iterator]});
-                token = "";
+                let is_number = isNumber(token);
+                console.log(`isNumber(${token}) == ${is_number}`);
+                if(isOP && !is_number){
+                   let fnc = Functions.get(token);
+
+                   if(fnc == undefined){
+                    return String(`Syntax Error: unexpected token: ${token}`);
+                   }
+                   return "big success!";
+                   
+                }
+                else if(isOP || is_number){
+                    console.log(`the token: ${token}`);
+                    tokens.push({expr: token, operator : expression[iterator]});
+                    token = "";
+                }
+                console.log(`the token: ${token}`);
             }
         }
 
@@ -279,9 +319,21 @@ function TokenizeExpression(expression)
         iterator++;
     }
 
-    if(token.length)
-        tokens.push({expr: token, operator: ""});
+    if(token.length){
+        if(isOperator(token[token.length-1]))
+            if(expecting_expression)
+                return "Syntax Error: expecting expression";
 
+        let is_number = isNumber(token);
+        if(is_number){
+            console.log(`isNumber(${token}) == true`);
+
+            tokens.push({expr: token, operator : ""});
+            token = "";
+        }else if(!is_number){
+            return String(`Syntax Error: unexpected token: ${token}`);
+        }
+    }
     console.log(expression);
 
     return tokens;
