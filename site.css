@@ -23,13 +23,17 @@
 /* Dropdown Button */
 .dropbtn {
     background-color: #04AA6D;
+    background: linear-gradient(to right, #ff9966, #ff5e62);
+
     color: white;
     padding: 16px;
     font-size: 16px;
     border: none;
+    border-radius:50px;
   }
   .dropbtn:hover{
     background-color: #284b3e;
+    background: linear-gradient(to right, #bbb7b4, #eb8c8c);
     color: white;
     padding: 16px;
     font-size: 16px;
@@ -37,6 +41,7 @@
   }
   .dropbtn:active{
     background-color: #434444;
+    background: linear-gradient(to right, #979797, #3d3c3c);
     color: white;
     padding: 16px;
     font-size: 16px;
@@ -88,14 +93,66 @@
   transition-duration:.5s;
   
   }
-  
   input[type="text"]:focus {
       background-color:rgb(51, 48, 48) ;
   }
-  input[type="checkbox"] {
-    width: 30px;
-    height: 30px;
-    margin-right: 10px;
-    transition-duration:.5s;
-    background: linear-gradient(to bottom right, #4b6cb7, #182848);
+ .rainbowtext {
+  font-size: 3em;
+  background-image: linear-gradient(to right, #FF0000, #FF7F00, #ff9966, #ff5e62, #0000FF, #4B0082);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+}
+.container {
+  display: inline-block;
+  position: relative;
+  padding-left: 35px;
+  margin-bottom: 1%;
+  margin-top: -10%;
+}
+
+/* Hide default checkbox */
+.container input {
+   position: absolute;
+   opacity:0;
+}
+
+/* Create custom checkbox */
+.checkmark {
+  
+    position: absolute;
+    top: -5px; 
+    left:-1px;
+    height:26px; width :26px;
+    border-radius:50px;
+   /* Customize appearance of the mark when it is clicked/checked */
+     background-color:#ddd;
+
+}
+
+/* On hover show outline effect */  
+.container:hover input ~ .checkmark {
+  border-radius:50px;
+  background-color:#ccc ;
+ }
+
+/* When checked show fill color for checkmark*/ 
+.container input:checked ~ .checkmark {
+  background: linear-gradient(to right, #ff9966, #ff5e62);
+  border-radius:50px;
+ }
+
+ /* Show tick in the center of check mark*/
+ .checkmark:before{
+ content:"\2714";
+ font-size :14px;
+ font-weight:bold;
+ color:white;
+ padding-top :3.8%;
+ display:block;
+ margin-left:auto;
+ margin-right:auto;
+ line-height :150%;
+ border-radius:50px;
  }

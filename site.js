@@ -14,10 +14,28 @@ const OperatorPriority = Object.freeze({
     UNARY: 12
 });
 const Functions = new Map([
-    ['sqrt', {fnc:   (value) =>    {return Math.sqrt(value);},    num_args: 1}],
-    ['tan',  {fnc:   (value) =>    {return Math.tan(value);},     num_args: 1}],
-    ['sin',  {fnc:   (value) =>    {return Math.sin(value);},     num_args: 1}],
-    ['cos',  {fnc:   (value) =>    {return Math.cos(value);},     num_args: 1}]
+    ['sqrt', {call:   (value) =>    {
+        if(typeof(value) != "object") 
+            throw "invalid type!";
+        return Math.sqrt(value[0]);},    num_args: 1, name: 'sqrt'}],
+    ['tan',  {call:   (value) =>    {
+        if(typeof(value) != "object") 
+        throw "invalid type!";
+        return Math.tan(value[0]);},     num_args: 1, name: 'tan'}],
+    ['sin',  {call:   (value) =>    {        
+        if(typeof(value) != "object") 
+            throw "invalid type!";
+        return Math.sin(value[0]);},     num_args: 1, name: 'sin'}],
+
+    ['cos',  {call:   (value) =>    {        
+        if(typeof(value) != "object") 
+            throw "invalid type!";
+        return Math.cos(value[0]);},     num_args: 1, name: 'cos'}],
+
+        ['atan2',  {call:   (value) =>    {        
+            if(typeof(value) != "object") 
+                throw "invalid type!";
+            return Math.atan2(value[0], value[1]);},     num_args: 2, name: 'atan2'}]
     ])
 
 let expecting_expression = true;
@@ -157,8 +175,21 @@ function EvaluateExpression_Init()
 
     let expression = elem.value.replace(/\s/g, ''); //remove whitespaces
 
-    EvaluateExpressionParts(expression);
-
+    try{
+        result = EvaluateExpressionParts(expression);
+    }
+    catch(exception)
+    {
+        console.log("exception caught!");
+        let output = document.getElementById("output_val");
+        output.innerHTML += (exception);
+        return false, console.log(exception);
+    }
+    // if(typeof(result) == "string"){
+    //     let output = document.getElementById("output_val");
+    //     output.innerHTML += (result);
+    //     return false, console.log(result);
+    // }
     //output.innerHTML += expression;
     //console.log(tokens);
 }
@@ -168,11 +199,23 @@ function eraseString(str, start, count) {
 function insertString(str, index, value) {
     return str.substr(0, index) + value + str.substr(index);
 } 
+function inverseString(str) {
+    let inversedStr = "";
+    
+    for(let i = str.length -1; i >= 0; i--) {
+      inversedStr += str[i];
+    }
+    
+    return inversedStr;
+  }
 //pass the whole expression including the parentheses
 function EvaluateExpressionParts(expression) //recursive
 {
-    if(typeof(expression) != "string")
-        return "invalid", alert(`EvaluateExpressionParts(): passed type ${typeof(expression)} instead of string`);
+    if(typeof(expression) != "string"){
+        throw `EvaluateExpressionParts(): passed type ${typeof(expression)} instead of string`;
+        //return "invalid", alert(`EvaluateExpressionParts(): passed type ${typeof(expression)} instead of string`);
+
+    }
     
     console.log(`EvaluateExpressionParts: "${expression}"`);
 
@@ -180,33 +223,53 @@ function EvaluateExpressionParts(expression) //recursive
     let par = StringWithinParantheses(expression);
     if(par == undefined){
         console.log(`EvaluateExpressionParts: par == undefined`);
-
-        return undefined;
+        throw `EvaluateExpressionParts: par == undefined`;
     }
 
     if(par.result_string.length){
-
+        console.log(`parenthesis ${par.result_string}`);
         let isfunccall = ((expr, itr) => {
             if(itr < 0)
                 return undefined;
 
             let ch = expr[itr];
             let token = String();
-            while(!isOperator(ch) && itr){
+            while(isAlphanumeric(ch)){
 
-                if(itr == 0)
+                if(itr == 0){
+                    token += ch;
                     break;
+                }
                 token += ch;
                 ch = expr[--itr];
             }
-            return Functions.get(token);
-                
+            token = inverseString(token);
+            console.log(`testing if ${token} is a function`);
+            let valid = Functions.get(token);
+            
+            if(!valid && token.length){
+                return String(`Syntax error: unknown function "${token}"`);
+               // return String(`Syntax error: unknown function "${token}"`)
+            }
+            return valid;
             
         })(expression, par.opening-1); //IsFunctionCall
 
-        if(isfunccall != undefined)
-            return EvaluateFunctionExpression(isfunccall, par);
-        
+        if(typeof(isfunccall) == "string"){
+            throw isfunccall;
+        }
+        if(isfunccall != undefined){
+            let result = EvaluateFunctionExpression(isfunccall, par);
+            let v_length = isfunccall.name.length; 
+            expression = eraseString(expression, par.opening - v_length, par.strlength + 2 + v_length);
+            expression = insertString(expression, par.opening - v_length, result);
+            let output = document.getElementById("output_val");
+            output.innerHTML += `${isfunccall.name}(${par.result_string}) = ${result}<br>`;
+            result = EvaluateExpressionParts(expression);
+            expecting_expression = false;
+            return result;
+        }
+        console.log("it is not a function");
         let result = EvaluateExpression(par.result_string);
         
         if(result == "NaN")
@@ -216,17 +279,18 @@ function EvaluateExpressionParts(expression) //recursive
         expression = eraseString(expression, par.opening, par.strlength + 2);
         expression = insertString(expression, par.opening, result);
         //console.log(`inserting "${result}" to ${expression}`);
-        EvaluateExpressionParts(expression);
-        
-        return true;
+        result = EvaluateExpressionParts(expression);
+        expecting_expression = false;
+        return result;
     }
     
     let result = EvaluateExpression(expression);
     if(result == "NaN"){
         console.log("epic EvaluateExpression() failure!");
-        return false;
+        throw "epic EvaluateExpression() failure!";
+        //return false;
     }
-    return true;
+    return result;
 }
 function EvaluateExpression(expression)
 {
@@ -235,20 +299,20 @@ function EvaluateExpression(expression)
         return expression;
     }
     if(typeof(expression) != "string")
-        return "NaN", alert(`EvaluateExpression(): passed type ${typeof(expression)} instead of string`);
+        throw `EvaluateExpression(): passed type ${typeof(expression)} instead of string`;
 
 
     const tokens = TokenizeExpression(expression);
 
     if(typeof(tokens) == "string"){
-        let output = document.getElementById("output_val");
-        output.innerHTML += (tokens);
-        console.log(`epic failure: ${tokens}`);
-        return "NaN";
+        throw tokens;
+        // let output = document.getElementById("output_val");
+        // output.innerHTML += (tokens);
+        // console.log(`epic failure: ${tokens}`);
+        // return "NaN";
     }
     console.log(tokens);
     return EvaluateExpressionTokens(tokens);
-    return true;
 }
 function EvaluateExpressionTokens(tokens)
 {
@@ -301,17 +365,39 @@ function EvaluateExpressionTokens(tokens)
     }
     return String(evaluated);
 }
-function EvaluateFunctionExpression(fnc, par_string)
+function EvaluateFunctionExpression(fnc, par)
 {
     //par_string = parenthesis object
     //par.result_string contains the string within the parentheses
 
-    
+    console.log(`it is a function that takes ${fnc.num_args} arguments`);
+    console.log(`evaluating the token ${par.result_string}`)
+    let arguments_processed = 0;
+    let args = par.result_string.split(",");
+
+    if(args.length != fnc.num_args){
+        throw (`Syntax error: incorrect amount of arguments (expected ${fnc.num_args} instead of ${args.length})`);
+    }
+    console.log(`unevaluated args: ${args}`);
+    while(arguments_processed != fnc.num_args){
+        let result = EvaluateExpressionParts(args[arguments_processed]);
+        
+        if(result === "NaN")
+            throw "NaN";
+
+        args[arguments_processed] = result;
+
+        ++arguments_processed;
+    }
+    console.log(`evaluated args: ${args}`);
+
+    return String(fnc.call(args));
+
 }
 function TokenizeExpression(expression)
 {
     if(typeof(expression) != "string")
-        return "NaN", alert(`TokenizeExpression(): passed type ${typeof(expression)} instead of string`);
+        throw (`TokenizeExpression(): passed type ${typeof(expression)} instead of string`);
 
     let iterator = 0;
     let token = new String();
@@ -319,8 +405,9 @@ function TokenizeExpression(expression)
     
     while(iterator < expression.length){
         let ch =  (expression[iterator]);
+
         if(expecting_opening_parenthesis && ch != '('){
-            return "Syntax Error: expected a '('";
+            throw "Syntax Error: expected a '('";
         }else if(expecting_opening_parenthesis)
             expecting_opening_parenthesis = 1;
 
@@ -329,7 +416,7 @@ function TokenizeExpression(expression)
         
         if(isOP){
             if(expecting_expression)
-                return "Syntax Error: expecting expression";
+                throw "Syntax Error: expecting expression";
 
             if(token.length != 1){
                 token = token.slice(0,-1);
@@ -343,7 +430,7 @@ function TokenizeExpression(expression)
                    let fnc = Functions.get(token);
                    
                     if(fnc == undefined){
-                        return String(`Syntax Error: unexpected token: ${token}`);
+                        throw String(`Syntax Error: unexpected token: ${token}`);
                     }
                     expecting_function_arguments = fnc.num_args;
                     expecting_opening_parenthesis = 0;
@@ -355,6 +442,13 @@ function TokenizeExpression(expression)
                 token = "";
             }
         }
+        // else if(ch === '('){
+        //     if(token.length != 1){
+        //         token = token.slice(0,-1);
+        //     }
+
+            
+        // }
 
         expecting_expression = isOP;
         iterator++;
@@ -370,12 +464,17 @@ function TokenizeExpression(expression)
             tokens.push({expr: token, operator : ""});
             token = "";
         }else if(!is_number){
-            return String(`Syntax Error: unexpected token: ${token}`);
+            let fnc = Functions.get(token);
+                   
+            if(fnc == undefined){
+                throw String(`Syntax Error: unexpected token: ${token}`);
+            }
+            throw String(`expected a function call for the token: ${token}`);
         }
     }
 
     if(expecting_expression)
-        return "Syntax Error: expecting expression";
+        throw "Syntax Error: expecting expression";
 
     console.log(expression);
 
@@ -384,3 +483,11 @@ function TokenizeExpression(expression)
     return tokens;
     
 }
+
+document.getElementById('check').addEventListener('change',function(){
+    if(this.checked){
+        //Do something
+    } else{
+        //Do something else
+    }
+});
