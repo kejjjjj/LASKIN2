@@ -26,8 +26,21 @@
           <label class="container epic_text">Deg instead of Rad
             <input type="checkbox" id="check" checked="checked">
             <span class="checkmark"></span>
-  
           </label>
+
+          <label class="container epic_text" for="numberSelect">Decimal precision:</label>
+
+          <select id="numberSelect">
+            <script>
+              var select = document.getElementById("numberSelect");
+              for (var i = 1; i <= 15; i++) {
+                var option = document.createElement("option");
+                option.text = i;
+                option.value = i;
+                select.appendChild(option);
+              }
+            </script>
+          </select>
 
           <br>
         <input class="a1" type="text" id = "expression_">

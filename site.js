@@ -14,6 +14,7 @@ const OperatorPriority = Object.freeze({
     UNARY: 12
 });
 let use_degrees = true;
+let decimal_precision = 1;
 class FuncClass
 {
     constructor(fnc, requires_angle){
@@ -61,10 +62,11 @@ const Functions = new Map([
 let expecting_expression = true;
 let expecting_opening_parenthesis = 0;
 let expecting_function_arguments = 0;
+let unary_allowed = true;
 function GetOperandPriority(ops)
 {
     if(typeof(ops) != "string")
-        return OperatorPriority.FAILURE, alert(`GetOperandPriority(): passed type ${typeof(ops)} instead of string`);
+        throw `GetOperandPriority(): passed type ${typeof(ops)} instead of string`;
     
     if(ops.length == 1){
         const op = ops[0];
@@ -148,7 +150,7 @@ function isAlphanumeric(character) {
 function StringWithinParantheses(str)
 {
     if(typeof(str) != "string")
-        return "invalid", alert(`StringWithinParantheses(): passed type ${typeof(str)} instead of string`);
+        throw (`StringWithinParantheses(): passed type ${typeof(str)} instead of string`);
 
     let obj = new Object({count_closing: 0, 
         count_opening: 0, 
@@ -177,8 +179,7 @@ function StringWithinParantheses(str)
 
     }
     if (obj.count_opening != obj.count_closing) {
-		alert(`no matching pair for '${obj.count_opening > obj.count_closing ? '(' : ')'}'`);
-		return undefined;
+		throw (`no matching pair for '${obj.count_opening > obj.count_closing ? '(' : ')'}'`);
 	}
     obj.strlength = closing - obj.opening - obj.count_opening;
     obj.result_string = str.substr(obj.opening + 1, obj.strlength);
@@ -192,6 +193,7 @@ function EvaluateExpression_Init()
      expecting_expression = true;
     expecting_opening_parenthesis = 0;
     expecting_function_arguments = 0;
+    unary_allowed = true;
     let elem = document.getElementById("expression_");
     let output = document.getElementById("output_val");
     output.innerHTML = "";
@@ -230,6 +232,14 @@ function inverseString(str) {
     }
     
     return inversedStr;
+  }
+  function getSubstringDecimal(arg) {
+    numberString = String(arg);
+    const decimalIndex = numberString.indexOf(".");
+    if(decimalIndex !== -1) {
+      return numberString.substr(0, decimalIndex + 1 + decimal_precision);
+    }
+    return numberString;
   }
 //pass the whole expression including the parentheses
 function EvaluateExpressionParts(expression) //recursive
@@ -289,7 +299,7 @@ function EvaluateExpressionParts(expression) //recursive
             expression = eraseString(expression, par.opening - v_length, par.strlength + 2 + v_length);
             expression = insertString(expression, par.opening - v_length, result);
             let output = document.getElementById("output_val");
-            output.innerHTML += `${isfunccall.name}(${par.result_string}) = ${result}<br>`;
+            output.innerHTML += `${isfunccall.name}(${par.result_string}) = ${getSubstringDecimal(result)}<br>`;
             result = EvaluateExpressionParts(expression);
             expecting_expression = false;
             return result;
@@ -306,6 +316,7 @@ function EvaluateExpressionParts(expression) //recursive
         //console.log(`inserting "${result}" to ${expression}`);
         result = EvaluateExpressionParts(expression);
         expecting_expression = false;
+        unary_allowed = false;
         return result;
     }
     
@@ -385,7 +396,7 @@ function EvaluateExpressionTokens(tokens)
        // tokens[lval_itr].expr = evaluated;
         
         
-        output.innerHTML += `(${loperand} ${_operator} ${roperand}) = ${evaluated}<br>`;
+        output.innerHTML += `(${getSubstringDecimal(loperand)} ${_operator} ${getSubstringDecimal(roperand)}) = ${getSubstringDecimal(evaluated)}<br>`;
         initial_size--;
     }
     return String(evaluated);
@@ -406,6 +417,7 @@ function EvaluateFunctionExpression(func_obj, par)
          throw (`Syntax error: incorrect amount of arguments (expected ${func_obj.num_args} instead of ${args.length})`);
     }
     console.log(`unevaluated args: ${args}`);
+    par.result_string = "";
     while(arguments_processed != func_obj.num_args){
         let result = EvaluateExpressionParts(args[arguments_processed]);
         
@@ -413,8 +425,9 @@ function EvaluateFunctionExpression(func_obj, par)
             throw "NaN";
 
         args[arguments_processed] = result;
-
+      
         ++arguments_processed;
+        par.result_string += (String(getSubstringDecimal(result)) + String(arguments_processed != func_obj.num_args ? ',' : "")); 
     }
     console.log(`evaluated args: ${args}`);
 
@@ -441,7 +454,7 @@ function TokenizeExpression(expression)
         token += expression[iterator];
         let isOP = isOperator(expression[iterator]);
         
-        if(isOP){
+         if(isOP && !(unary_allowed && ch == '-')){
             if(expecting_expression)
                 throw "Syntax Error: expecting expression";
 
@@ -465,9 +478,15 @@ function TokenizeExpression(expression)
                 }
                 else if(isOP || is_number){
                     tokens.push({expr: token, operator : expression[iterator]});
+                    if(isOP){
+                        unary_allowed = true;
+
+                    }
                 }
                 token = "";
             }
+        }else if(unary_allowed && ch == '-' || unary_allowed && token.length>1){
+            unary_allowed = false;
         }
         // else if(ch === '('){
         //     if(token.length != 1){
@@ -476,7 +495,7 @@ function TokenizeExpression(expression)
 
             
         // }
-
+        
         expecting_expression = isOP;
         iterator++;
     }
@@ -523,6 +542,15 @@ function func()
             // Do something when unchecked
         }
     });
+
+    var select = document.querySelector("#numberSelect");
+    select.addEventListener('change', (event) => {
+        console.log("changed");
+        use_degrees = event.target;
+        console.log(event.target.value);
+        decimal_precision = parseInt(event.target.value);
+    });
+
 }
 
 window.onload = (func);
