@@ -13,30 +13,50 @@ const OperatorPriority = Object.freeze({
     MULTIPLICATIVE : 11,
     UNARY: 12
 });
+let use_degrees = true;
+class FuncClass
+{
+    constructor(fnc, requires_angle){
+        this.name = fnc.name;
+        this.fnc = fnc;
+        this.num_args = fnc.length;
+        this.requires_angle = requires_angle;
+    };
+    call(...args){
+        // if(args.length != this.num_args)
+        //     throw `expected ${this.num_args} args instead of ${args.length}`;
+        for(let i = 0; i < args.length; i++){
+            console.log(`type: ${typeof(args[i])}`);
+            console.log(args);
+            if(this.requires_angle && use_degrees){
+                console.log(`before: ${args[i]}`);
+                args[i] *=  Math.PI / 180;
+                console.log(`after: ${args[i]}`);
+            }
+        }
+
+        console.log(`${this.name}(${args})`);
+        return (this.fnc(...args) * (this.requires_angle && use_degrees ? 180 / Math.PI : 1));
+    }
+}
 const Functions = new Map([
-    ['sqrt', {call:   (value) =>    {
-        if(typeof(value) != "object") 
-            throw "invalid type!";
-        return Math.sqrt(value[0]);},    num_args: 1, name: 'sqrt'}],
-    ['tan',  {call:   (value) =>    {
-        if(typeof(value) != "object") 
-        throw "invalid type!";
-        return Math.tan(value[0]);},     num_args: 1, name: 'tan'}],
-    ['sin',  {call:   (value) =>    {        
-        if(typeof(value) != "object") 
-            throw "invalid type!";
-        return Math.sin(value[0]);},     num_args: 1, name: 'sin'}],
-
-    ['cos',  {call:   (value) =>    {        
-        if(typeof(value) != "object") 
-            throw "invalid type!";
-        return Math.cos(value[0]);},     num_args: 1, name: 'cos'}],
-
-        ['atan2',  {call:   (value) =>    {        
-            if(typeof(value) != "object") 
-                throw "invalid type!";
-            return Math.atan2(value[0], value[1]);},     num_args: 2, name: 'atan2'}]
-    ])
+    ['tan',     new FuncClass  (Math.tan,   true )],
+    ['atan',    new FuncClass  (Math.atan,  true )],
+    ['sin',     new FuncClass  (Math.sin,   true )],
+    ['asin',    new FuncClass  (Math.asin,  true )],
+    ['cos',     new FuncClass  (Math.cos,   true )],
+    ['acos',    new FuncClass  (Math.acos,  true )],
+    ['atan2',   new FuncClass  (Math.atan2, true )],
+    ['sqrt',    new FuncClass  (Math.sqrt,  false)],
+    ['pow',     new FuncClass  (Math.pow,   false)],
+    ['abs',     new FuncClass  (Math.abs,   false)],
+    ['ceil',    new FuncClass  (Math.ceil,  false)],
+    ['floor',   new FuncClass  (Math.floor, false)],
+    ['round',   new FuncClass  (Math.round, false)],
+    ['min',     new FuncClass  (Math.min,   false)],
+    ['max',     new FuncClass  (Math.max,   false)],
+    ['random',  new FuncClass  (Math.random,false)]
+])
 
 let expecting_expression = true;
 let expecting_opening_parenthesis = 0;
@@ -45,7 +65,7 @@ function GetOperandPriority(ops)
 {
     if(typeof(ops) != "string")
         return OperatorPriority.FAILURE, alert(`GetOperandPriority(): passed type ${typeof(ops)} instead of string`);
-
+    
     if(ops.length == 1){
         const op = ops[0];
 
@@ -162,10 +182,13 @@ function StringWithinParantheses(str)
 	}
     obj.strlength = closing - obj.opening - obj.count_opening;
     obj.result_string = str.substr(obj.opening + 1, obj.strlength);
+    if(obj.count_opening && obj.count_closing && !obj.result_string)
+        obj.result_string = String("empty");
     return obj;
 }
 function EvaluateExpression_Init()
 {
+
      expecting_expression = true;
     expecting_opening_parenthesis = 0;
     expecting_function_arguments = 0;
@@ -228,6 +251,8 @@ function EvaluateExpressionParts(expression) //recursive
 
     if(par.result_string.length){
         console.log(`parenthesis ${par.result_string}`);
+        if(par.result_string == "empty")
+            par.result_string = "";
         let isfunccall = ((expr, itr) => {
             if(itr < 0)
                 return undefined;
@@ -365,21 +390,23 @@ function EvaluateExpressionTokens(tokens)
     }
     return String(evaluated);
 }
-function EvaluateFunctionExpression(fnc, par)
+function EvaluateFunctionExpression(func_obj, par)
 {
     //par_string = parenthesis object
     //par.result_string contains the string within the parentheses
-
-    console.log(`it is a function that takes ${fnc.num_args} arguments`);
+    console.log(`it is a function that takes ${func_obj.num_args} arguments`);
     console.log(`evaluating the token ${par.result_string}`)
     let arguments_processed = 0;
     let args = par.result_string.split(",");
+    if(par.result_string == "")
+        args = [];
+    console.log(func_obj);
 
-    if(args.length != fnc.num_args){
-        throw (`Syntax error: incorrect amount of arguments (expected ${fnc.num_args} instead of ${args.length})`);
+    if(args.length != func_obj.num_args){
+         throw (`Syntax error: incorrect amount of arguments (expected ${func_obj.num_args} instead of ${args.length})`);
     }
     console.log(`unevaluated args: ${args}`);
-    while(arguments_processed != fnc.num_args){
+    while(arguments_processed != func_obj.num_args){
         let result = EvaluateExpressionParts(args[arguments_processed]);
         
         if(result === "NaN")
@@ -391,7 +418,7 @@ function EvaluateFunctionExpression(fnc, par)
     }
     console.log(`evaluated args: ${args}`);
 
-    return String(fnc.call(args));
+    return String(func_obj.call(...args));
 
 }
 function TokenizeExpression(expression)
@@ -483,11 +510,19 @@ function TokenizeExpression(expression)
     return tokens;
     
 }
+function func()
+{
+    const checkbox = document.querySelector('#check');
+    checkbox.addEventListener('change', (event) => {
+        use_degrees = event.target.checked;
+        if (event.target.checked) {
+            // Do something when checked
+            console.log("checked");
+        } else {
+            console.log("unchecked");
+            // Do something when unchecked
+        }
+    });
+}
 
-document.getElementById('check').addEventListener('change',function(){
-    if(this.checked){
-        //Do something
-    } else{
-        //Do something else
-    }
-});
+window.onload = (func);
